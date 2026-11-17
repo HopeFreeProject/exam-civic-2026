@@ -7,6 +7,7 @@ Examens blancs aléatoires de 40 questions pour s'entraîner à l'examen civique
 - 40 questions tirées au hasard selon la répartition par thème, 45 minutes, réussite à 32/40.
 - QCM : jusqu'à 4 propositions, une ou plusieurs bonnes réponses. 1 point seulement si toutes les bonnes réponses (et uniquement elles) sont cochées, sans point négatif.
 - À la fin : le score, le détail par thème et la revue de chaque question, avec l'extrait des fiches PDF qui explique la réponse.
+- **Mode révision** : une question à la fois, correction immédiate avec l'extrait du PDF, puis « Question suivante ». Un compteur affiche la série de bonnes réponses d'affilée (remise à 0 en cas d'erreur) et le record. Les questions ratées reviennent quelques questions plus tard.
 
 ## Fichiers
 

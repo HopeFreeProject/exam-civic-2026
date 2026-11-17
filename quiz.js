@@ -7,6 +7,7 @@
 
   const SESSION_KEY = 'examCivique.session.v1';
   const SEEN_KEY = 'examCivique.seen.v1';
+  const REVISION_KEY = 'examCivique.revision.v1';
   const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
   const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -67,6 +68,16 @@
     return sel.size === good.size && [...sel].every(i => good.has(i));
   }
 
+  // Révision : remet une question ratée dans la file, 3 à 6 questions plus loin.
+  function requeue(queue, id, rnd) {
+    const r = rnd || Math.random;
+    const q = queue.filter(x => x !== id);
+    const min = Math.min(3, q.length);
+    const max = Math.min(6, q.length);
+    q.splice(min + Math.floor(r() * (max - min + 1)), 0, id);
+    return q;
+  }
+
   // Normalisation pour retrouver un passage dans le texte du PDF.
   function normalizeText(s) {
     return String(s).normalize('NFKD').replace(/[̀-ͯ]/g, '')
@@ -105,7 +116,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { shuffle, buildExam, isCorrect, normalizeText, locateExcerpt };
+    module.exports = { shuffle, buildExam, isCorrect, requeue, normalizeText, locateExcerpt };
   }
   if (typeof document === 'undefined') return;
 
@@ -116,7 +127,8 @@
   let DATA = null;
   const BYID = {};
   const THEMES = {};
-  let session = null;
+  let session = null; // examen blanc en cours ou terminé
+  let rev = null; // état du mode révision
   let timerHandle = null;
   let tickBase = 0;
   let tickCount = 0;
@@ -187,6 +199,13 @@
     } else if (saved) {
       store.del(SESSION_KEY); // questions modifiées depuis : session obsolète
     }
+    const savedRev = store.get(REVISION_KEY);
+    if (savedRev && Array.isArray(savedRev.queue)) {
+      savedRev.queue = savedRev.queue.filter(id => BYID[id]);
+      if (savedRev.current && !BYID[savedRev.current.id]) savedRev.current = null;
+      savedRev.missed = savedRev.missed || {};
+      rev = savedRev;
+    }
     renderHome();
     show('home');
   }
@@ -195,6 +214,9 @@
     $('#btn-start').addEventListener('click', startExam);
     $('#btn-resume').addEventListener('click', openQuiz);
     $('#btn-last').addEventListener('click', () => { renderResults(); show('results'); });
+    $('#btn-revise').addEventListener('click', startRevision);
+    $('#rv-check').addEventListener('click', checkRevision);
+    $('#rv-next').addEventListener('click', nextRevision);
     $('#btn-header-home').addEventListener('click', goHome);
     $('#btn-prev').addEventListener('click', () => go(session.current - 1));
     $('#btn-next').addEventListener('click', () => go(session.current + 1));
@@ -249,6 +271,9 @@
     }
     $('#btn-last').hidden = !(session && session.status === 'finished');
     $('#btn-start').textContent = running ? 'Commencer un nouvel examen' : 'Commencer un examen';
+    $('#btn-revise').textContent = rev && rev.answered
+      ? `Continuer la révision (série : ${rev.streak} · record : ${rev.best})`
+      : 'Réviser question par question';
   }
 
   function goHome() {
@@ -304,17 +329,7 @@
     $('#q-type').hidden = q.type !== 'situation';
     $('#q-text').textContent = q.question;
 
-    $('#q-choices').replaceChildren(...it.order.map((orig, pos) => {
-      const checked = it.sel.includes(orig);
-      const input = h('input', { type: 'checkbox', value: orig, checked });
-      const label = h('label', { class: 'choice' + (checked ? ' is-checked' : '') },
-        input,
-        h('span', { class: 'box', 'aria-hidden': 'true' }),
-        h('span', { class: 'letter' }, LETTERS[pos]),
-        h('span', { class: 'ctext' }, q.choices[orig]));
-      input.addEventListener('change', () => toggleChoice(orig, input.checked, label));
-      return label;
-    }));
+    $('#q-choices').replaceChildren(...buildChoiceInputs(q, it.order, it.sel, toggleChoice));
 
     const last = session.current === n - 1;
     $('#btn-prev').disabled = session.current === 0;
@@ -323,11 +338,28 @@
     renderGrid();
   }
 
-  function toggleChoice(orig, on, label) {
+  // Propositions à cocher (examen et révision). onToggle(indexOriginal, coché)
+  function buildChoiceInputs(q, order, sel, onToggle) {
+    return order.map((orig, pos) => {
+      const checked = sel.includes(orig);
+      const input = h('input', { type: 'checkbox', value: orig, checked });
+      const label = h('label', { class: 'choice' + (checked ? ' is-checked' : '') },
+        input,
+        h('span', { class: 'box', 'aria-hidden': 'true' }),
+        h('span', { class: 'letter' }, LETTERS[pos]),
+        h('span', { class: 'ctext' }, q.choices[orig]));
+      input.addEventListener('change', () => {
+        label.classList.toggle('is-checked', input.checked);
+        onToggle(orig, input.checked);
+      });
+      return label;
+    });
+  }
+
+  function toggleChoice(orig, on) {
     const it = session.items[session.current];
     it.sel = it.sel.filter(i => i !== orig);
     if (on) it.sel.push(orig);
-    label.classList.toggle('is-checked', on);
     save();
     renderGrid();
   }
@@ -344,15 +376,32 @@
     }, i + 1)));
   }
 
+  // Touches 1-4 (ou A-D) : coche / décoche la proposition correspondante.
+  function toggleByKey(e, selector) {
+    if (e.key.length !== 1) return;
+    let idx = '1234'.indexOf(e.key);
+    if (idx < 0) idx = 'abcd'.indexOf(e.key.toLowerCase());
+    const input = idx >= 0 ? $$(selector)[idx] : null;
+    if (!input) return;
+    input.checked = !input.checked;
+    input.dispatchEvent(new Event('change'));
+  }
+
   function onKey(e) {
-    if (document.body.dataset.screen !== 'quiz' || $('#pdf-dialog').open) return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === 'ArrowRight') { go(session.current + 1); e.preventDefault(); return; }
-    if (e.key === 'ArrowLeft') { go(session.current - 1); e.preventDefault(); return; }
-    const idx = '1234'.indexOf(e.key) >= 0 ? '1234'.indexOf(e.key) : 'abcd'.indexOf(e.key.toLowerCase());
-    if (idx >= 0 && e.key.length === 1) {
-      const input = $$('#q-choices input')[idx];
-      if (input) { input.checked = !input.checked; input.dispatchEvent(new Event('change')); }
+    if ($('#pdf-dialog').open || e.ctrlKey || e.metaKey || e.altKey) return;
+    const screen = document.body.dataset.screen;
+    if (screen === 'quiz') {
+      if (e.key === 'ArrowRight') { go(session.current + 1); e.preventDefault(); return; }
+      if (e.key === 'ArrowLeft') { go(session.current - 1); e.preventDefault(); return; }
+      toggleByKey(e, '#q-choices input');
+    } else if (screen === 'revision' && rev && rev.current) {
+      if (e.key === 'Enter') {
+        if (e.target.closest && e.target.closest('button, a')) return; // le bouton gère déjà Entrée
+        e.preventDefault();
+        if (rev.current.checked) nextRevision(); else checkRevision();
+        return;
+      }
+      if (!rev.current.checked) toggleByKey(e, '#rv-choices input');
     }
   }
 
@@ -397,6 +446,140 @@
       timer.title = 'Temps écoulé';
     }
     if (++tickCount % 5 === 0) persistElapsed();
+  }
+
+  /* ---------- Révision : une question à la fois, correction immédiate ---------- */
+
+  function saveRev() { if (rev) store.set(REVISION_KEY, rev); }
+
+  function startRevision() {
+    if (!rev) rev = { queue: [], current: null, streak: 0, best: 0, answered: 0, correct: 0, missed: {} };
+    if (!rev.current) nextRevisionQuestion();
+    saveRev();
+    show('revision');
+    renderRevision();
+  }
+
+  // Toute la banque est parcourue dans un ordre aléatoire ; les questions ratées
+  // sont réinsérées un peu plus loin dans la file (voir requeue).
+  function nextRevisionQuestion() {
+    const lastId = rev.current ? rev.current.id : null;
+    if (!rev.queue.length) {
+      rev.queue = shuffle(DATA.questions.map(q => q.id));
+      if (rev.queue.length > 1 && rev.queue[0] === lastId) {
+        [rev.queue[0], rev.queue[1]] = [rev.queue[1], rev.queue[0]];
+      }
+    }
+    const id = rev.queue.shift();
+    rev.current = {
+      id,
+      order: shuffle(BYID[id].choices.map((_, i) => i)),
+      sel: [],
+      checked: false,
+      wasMissed: !!rev.missed[id]
+    };
+  }
+
+  function nextRevision() {
+    nextRevisionQuestion();
+    saveRev();
+    $('#rv-streak-box').classList.remove('bump', 'reset');
+    renderRevision();
+    window.scrollTo(0, 0);
+  }
+
+  function toggleRevisionChoice(orig, on) {
+    const cur = rev.current;
+    cur.sel = cur.sel.filter(i => i !== orig);
+    if (on) cur.sel.push(orig);
+    $('#rv-check').disabled = !cur.sel.length;
+    saveRev();
+  }
+
+  function checkRevision() {
+    const cur = rev.current;
+    if (!cur || cur.checked || !cur.sel.length) return;
+    const ok = isCorrect(BYID[cur.id], cur.sel);
+    cur.checked = true;
+    rev.answered++;
+    if (ok) {
+      rev.correct++;
+      rev.streak++;
+      cur.record = rev.streak > rev.best && rev.streak > 1;
+      rev.best = Math.max(rev.best, rev.streak);
+      delete rev.missed[cur.id];
+    } else {
+      rev.streak = 0; // la série retombe à zéro
+      rev.missed[cur.id] = true;
+      rev.queue = requeue(rev.queue, cur.id); // la question reviendra plus tard
+    }
+    cur.streakAfter = rev.streak;
+    saveRev();
+    renderRevision();
+    const box = $('#rv-streak-box');
+    box.classList.remove('bump', 'reset');
+    void box.offsetWidth; // relance l'animation
+    box.classList.add(ok ? 'bump' : 'reset');
+    $('#rv-feedback').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    $('#rv-next').focus({ preventScroll: true });
+  }
+
+  function plural(n, one, many) { return n > 1 ? many : one; }
+
+  function renderRevision() {
+    const cur = rev.current;
+    const q = BYID[cur.id];
+
+    $('#rv-streak').textContent = rev.streak;
+    $('#rv-streak-label').textContent = plural(rev.streak, 'bonne réponse d\'affilée', 'bonnes réponses d\'affilée');
+    $('#rv-best').textContent = rev.best;
+    $('#rv-total').textContent = `${rev.correct}/${rev.answered} ${plural(rev.correct, 'réussie', 'réussies')}`;
+
+    $('#rv-tags').replaceChildren(...[
+      h('span', { class: 'tag' }, THEMES[q.theme].label),
+      q.type === 'situation' ? h('span', { class: 'tag tag-situation' }, 'Mise en situation') : null,
+      cur.wasMissed ? h('span', { class: 'tag tag-missed' }, 'Déjà ratée') : null
+    ].filter(Boolean));
+    $('#rv-text').textContent = q.question;
+
+    const feedback = $('#rv-feedback');
+    const explain = $('#rv-explain');
+    $('#rv-hint').hidden = cur.checked;
+    $('#rv-check').hidden = cur.checked;
+    $('#rv-next').hidden = !cur.checked;
+
+    if (!cur.checked) {
+      $('#rv-choices').replaceChildren(...buildChoiceInputs(q, cur.order, cur.sel, toggleRevisionChoice));
+      $('#rv-check').disabled = !cur.sel.length;
+      feedback.hidden = true;
+      explain.hidden = true;
+      explain.replaceChildren();
+      return;
+    }
+
+    $('#rv-choices').replaceChildren(buildCorrectionList(q, cur.order, cur.sel));
+    const ok = isCorrect(q, cur.sel);
+    let detail;
+    if (ok) {
+      detail = cur.record
+        ? `Nouveau record : ${cur.streakAfter} bonnes réponses d'affilée !`
+        : `Série en cours : ${cur.streakAfter} ${plural(cur.streakAfter, 'bonne réponse', 'bonnes réponses')} d'affilée.`;
+    } else {
+      const wrong = cur.sel.filter(i => !q.answers.includes(i)).length;
+      const missed = q.answers.filter(i => !cur.sel.includes(i)).length;
+      const parts = [];
+      if (wrong) parts.push(`${wrong} ${plural(wrong, 'proposition cochée', 'propositions cochées')} à tort`);
+      if (missed) parts.push(`${missed} ${plural(missed, 'bonne réponse oubliée', 'bonnes réponses oubliées')}`);
+      const what = parts.join(' et ');
+      detail = `${what.charAt(0).toUpperCase() + what.slice(1)}. La série retombe à 0 ; cette question reviendra un peu plus tard.`;
+    }
+    feedback.className = 'feedback ' + (ok ? 'is-ok' : 'is-ko');
+    feedback.replaceChildren(
+      h('span', { class: 'fb-icon', 'aria-hidden': 'true' }, ok ? '✓' : '✗'),
+      h('div', null, h('strong', null, ok ? 'Bonne réponse !' : 'Mauvaise réponse'), h('small', null, detail)));
+    feedback.hidden = false;
+    explain.replaceChildren(...buildExplain(q));
+    explain.hidden = false;
   }
 
   /* ---------- Fin et résultats ---------- */
@@ -499,20 +682,7 @@
       q.type === 'situation' ? h('span', { class: 'tag tag-situation' }, 'Mise en situation') : null,
       q.answers.length > 1 ? h('span', { class: 'tag' }, `${q.answers.length} bonnes réponses`) : null));
     if (!it.sel.length) parts.push(h('p', { class: 'note' }, 'Vous n\'avez coché aucune réponse.'));
-
-    parts.push(h('ul', { class: 'review-choices' }, it.order.map((orig, pos) => {
-      const good = q.answers.includes(orig);
-      const sel = it.sel.includes(orig);
-      let state = '', label = '';
-      if (good && sel) { state = 'is-good'; label = 'Bonne réponse cochée'; }
-      else if (good) { state = 'is-missed'; label = 'Bonne réponse non cochée'; }
-      else if (sel) { state = 'is-bad'; label = 'Cochée à tort'; }
-      return h('li', { class: `rc ${state}${sel ? ' is-selected' : ''}` },
-        h('span', { class: 'box', role: 'img', 'aria-label': sel ? 'Votre choix : coché' : 'Votre choix : non coché' }),
-        h('span', { class: 'letter' }, LETTERS[pos]),
-        h('span', { class: 'ctext' }, q.choices[orig]),
-        label ? h('span', { class: 'rc-tag' }, label) : null);
-    })));
+    parts.push(buildCorrectionList(q, it.order, it.sel));
 
     const explain = h('div', { class: 'explain', hidden: true });
     const btn = h('button', { type: 'button', class: 'btn btn-explain', 'aria-expanded': 'false' }, 'Voir la réponse dans le PDF');
@@ -530,6 +700,23 @@
   // Page ouverte depuis le disque (file://) : le navigateur interdit de lire le PDF
   // par programme, donc pas d'aperçu surligné — on ouvre le PDF à la bonne page.
   const IS_LOCAL_FILE = location.protocol === 'file:';
+
+  // Correction : choix de l'utilisateur + bonnes réponses (examen et révision).
+  function buildCorrectionList(q, order, selected) {
+    return h('ul', { class: 'review-choices' }, order.map((orig, pos) => {
+      const good = q.answers.includes(orig);
+      const sel = selected.includes(orig);
+      let state = '', label = '';
+      if (good && sel) { state = 'is-good'; label = 'Bonne réponse cochée'; }
+      else if (good) { state = 'is-missed'; label = 'Bonne réponse non cochée'; }
+      else if (sel) { state = 'is-bad'; label = 'Cochée à tort'; }
+      return h('li', { class: `rc ${state}${sel ? ' is-selected' : ''}` },
+        h('span', { class: 'box', role: 'img', 'aria-label': sel ? 'Votre choix : coché' : 'Votre choix : non coché' }),
+        h('span', { class: 'letter' }, LETTERS[pos]),
+        h('span', { class: 'ctext' }, q.choices[orig]),
+        label ? h('span', { class: 'rc-tag' }, label) : null);
+    }));
+  }
 
   function buildExplain(q) {
     const out = [h('p', { class: 'explain-lead' },
