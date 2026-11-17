@@ -194,7 +194,8 @@
     DATA.themes.forEach(t => { THEMES[t.id] = t; });
 
     const saved = store.get(SESSION_KEY);
-    if (saved && Array.isArray(saved.items) && saved.items.length && saved.items.every(it => BYID[it.id])) {
+    const fits = it => it && BYID[it.id] && Array.isArray(it.order) && it.order.length === BYID[it.id].choices.length;
+    if (saved && Array.isArray(saved.items) && saved.items.length && saved.items.every(fits)) {
       session = saved;
     } else if (saved) {
       store.del(SESSION_KEY); // questions modifiées depuis : session obsolète
@@ -202,7 +203,7 @@
     const savedRev = store.get(REVISION_KEY);
     if (savedRev && Array.isArray(savedRev.queue)) {
       savedRev.queue = savedRev.queue.filter(id => BYID[id]);
-      if (savedRev.current && !BYID[savedRev.current.id]) savedRev.current = null;
+      if (savedRev.current && !fits(savedRev.current)) savedRev.current = null;
       savedRev.missed = savedRev.missed || {};
       rev = savedRev;
     }
@@ -719,8 +720,12 @@
   }
 
   function buildExplain(q) {
-    const out = [h('p', { class: 'explain-lead' },
-      q.sources.length > 1 ? 'Ce que disent les fiches PDF :' : 'Ce que dit la fiche PDF :')];
+    const out = [];
+    if (q.explanation) {
+      out.push(h('div', { class: 'explanation' }, h('strong', null, 'Explication'), h('p', null, q.explanation)));
+    }
+    out.push(h('p', { class: 'explain-lead' },
+      q.sources.length > 1 ? 'Ce que disent les fiches PDF :' : 'Ce que dit la fiche PDF :'));
     q.sources.forEach(key => {
       const ex = DATA.excerpts[key];
       if (!ex) return;
