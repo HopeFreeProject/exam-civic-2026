@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Examen civique — Entraînement</title>
+  <meta name="description" content="Examens blancs aléatoires de 40 questions pour s'entraîner à l'examen civique, avec correction et extraits des fiches PDF.">
+  <meta name="theme-color" content="#f4f5f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1218" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='10' height='20' fill='%232346c7'/%3E%3Crect x='10' width='10' height='20' fill='%23fff'/%3E%3Crect x='20' width='10' height='20' fill='%23d62839'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f5f9;
+      --surface: #ffffff;
+      --surface-2: #eef0f6;
+      --text: #161a23;
+      --muted: #5a6376;
+      --border: #dce0ea;
+      --accent: #2346c7;
+      --accent-hover: #1b389f;
+      --accent-soft: #e7ecff;
+      --on-accent: #ffffff;
+      --ok: #157a3c;
+      --ok-soft: #e2f4e8;
+      --ko: #c22b2b;
+      --ko-soft: #fce8e8;
+      --warn: #a75a00;
+      --warn-soft: #fff1dc;
+      --red: #d62839;
+      --mark: rgba(255, 208, 0, .42);
+      --mark-line: rgba(230, 150, 0, .9);
+      --radius: 14px;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 6px 18px rgba(16, 24, 40, .06);
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1218;
+        --surface: #171b23;
+        --surface-2: #212734;
+        --text: #e8ebf2;
+        --muted: #9ba4b7;
+        --border: #2c3342;
+        --accent: #86a2ff;
+        --accent-hover: #a9bdff;
+        --accent-soft: #1d2747;
+        --on-accent: #0b1020;
+        --ok: #4ade80;
+        --ok-soft: #11301e;
+        --ko: #f87171;
+        --ko-soft: #3a1818;
+        --warn: #fbbf24;
+        --warn-soft: #382a0d;
+        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+    [hidden] { display: none !important; }
+    button, input { font: inherit; color: inherit; }
+    h1, h2, h3 { line-height: 1.25; margin: 0 0 .5em; }
+    h2 { font-size: 1.15rem; }
+    p { margin: 0 0 .75em; }
+    a { color: var(--accent); }
+    .muted { color: var(--muted); }
+    .small { font-size: .875rem; }
+
+    /* ---------- En-tête ---------- */
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar::before {
+      content: ""; display: block; height: 4px;
+      background: linear-gradient(90deg, var(--accent) 0 33.3%, #fff 33.3% 66.6%, var(--red) 66.6%);
+    }
+    .topbar-inner {
+      max-width: 780px; margin: 0 auto;
+      padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .brand { font-weight: 700; font-size: 1rem; letter-spacing: .01em; }
+    .brand span { color: var(--muted); font-weight: 500; }
+
+    main { max-width: 780px; margin: 0 auto; padding: 16px 16px 32px; }
+    .screen { display: flex; flex-direction: column; gap: 16px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    @media (max-width: 480px) { .card { padding: 16px; } }
+
+    /* ---------- Boutons ---------- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 44px; padding: 10px 18px;
+      border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--text);
+      font-weight: 600; text-decoration: none; cursor: pointer;
+      transition: background .15s, border-color .15s, transform .05s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn:focus-visible, .choice:focus-within, .review-toggle:focus-visible, .cell:focus-visible {
+      outline: 3px solid var(--accent); outline-offset: 2px;
+    }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-ghost { background: transparent; }
+    .btn-lg { min-height: 52px; font-size: 1.05rem; padding: 12px 22px; }
+    .btn-small { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
+    .btn-link { background: none; border: none; min-height: 40px; padding: 6px 10px; color: var(--accent); }
+
+    /* ---------- Accueil ---------- */
+    .hero h1 { font-size: clamp(1.6rem, 5vw, 2.1rem); margin-bottom: .25em; }
+    .lead { color: var(--muted); font-size: 1.05rem; }
+    .facts { list-style: none; padding: 0; margin: 18px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .facts li {
+      background: var(--surface-2); border-radius: 12px; padding: 12px 8px; text-align: center;
+      display: flex; flex-direction: column;
+    }
+    .facts strong { font-size: 1.5rem; color: var(--accent); line-height: 1.1; }
+    .facts span { font-size: .85rem; color: var(--muted); }
+    .start { display: flex; flex-direction: column; gap: 10px; }
+    .switch { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; user-select: none; }
+    .switch input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+    .rules { margin: 0; padding-left: 1.2em; }
+    .rules li { margin-bottom: .4em; }
+    .dist { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: .95rem; }
+    .dist th { text-align: left; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    .dist td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .dist tr:last-child td { border-bottom: none; }
+    .dist .num { text-align: center; font-variant-numeric: tabular-nums; }
+    .dist th.num { width: 24%; }
+    .dist td.num { white-space: nowrap; }
+    .dist .bank { display: block; font-size: .8rem; color: var(--muted); }
+    .disclaimer { font-size: .85rem; color: var(--muted); text-align: center; margin: 4px 8px 0; }
+    .sources-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+
+    /* ---------- Quiz ---------- */
+    .quiz-head { display: flex; flex-direction: column; gap: 8px; }
+    .quiz-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
+    .timer {
+      font-variant-numeric: tabular-nums; padding: 4px 10px; border-radius: 999px;
+      background: var(--surface-2); font-size: .95rem;
+    }
+    .timer.is-low { background: var(--ko-soft); color: var(--ko); }
+    .progress { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .progress > div { height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width .25s; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .tag {
+      font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent);
+    }
+    .tag-situation { background: var(--warn-soft); color: var(--warn); }
+    .question-text { font-size: clamp(1.1rem, 3.6vw, 1.3rem); font-weight: 650; margin-bottom: .4em; }
+    .hint { color: var(--muted); font-size: .9rem; margin-bottom: 14px; }
+
+    .choices { display: flex; flex-direction: column; gap: 10px; }
+    .choice {
+      position: relative;
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px; min-height: 56px;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      background: var(--surface); cursor: pointer;
+      transition: border-color .15s, background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .choice:hover { border-color: var(--accent); }
+    .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+    .choice.is-checked { border-color: var(--accent); background: var(--accent-soft); }
+    .box {
+      flex: none; width: 24px; height: 24px; margin-top: 1px;
+      border: 2px solid var(--muted); border-radius: 6px;
+      display: grid; place-items: center; background: var(--surface);
+    }
+    .box::after { content: ""; width: 6px; height: 11px; border: solid transparent; border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
+    .choice.is-checked .box, .rc.is-selected .box { background: var(--accent); border-color: var(--accent); }
+    .choice.is-checked .box::after, .rc.is-selected .box::after { border-color: var(--on-accent); }
+    .letter { flex: none; font-weight: 700; color: var(--muted); min-width: 1.1em; }
+    .ctext { flex: 1; }
+
+    .navgrid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+    .navgrid-wrap summary {
+      cursor: pointer; padding: 12px 16px; font-weight: 600; list-style: none;
+      display: flex; justify-content: space-between; gap: 12px;
+    }
+    .navgrid-wrap summary::-webkit-details-marker { display: none; }
+    .navgrid-wrap summary::after { content: "▾"; color: var(--muted); }
+    .navgrid-wrap[open] summary::after { content: "▴"; }
+    .navgrid-wrap summary span { color: var(--muted); font-weight: 500; margin-left: auto; }
+    .navgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; padding: 0 16px 16px; }
+    .cell {
+      height: 40px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: var(--surface); cursor: pointer; font-weight: 600; font-variant-numeric: tabular-nums;
+    }
+    .cell.is-answered { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+    .cell.is-current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+    .quiz-nav {
+      position: sticky; bottom: 0; z-index: 5;
+      margin: 0 -16px -32px;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    }
+    @supports not (background: color-mix(in srgb, red, blue)) { .quiz-nav { background: var(--bg); } }
+    .kbd-hint { font-size: .8rem; color: var(--muted); text-align: center; margin: 0; }
+    @media (hover: none) { .kbd-hint { display: none; } }
+
+    /* ---------- Résultats ---------- */
+    .score-card { display: flex; align-items: center; gap: 24px; }
+    @media (max-width: 520px) { .score-card { flex-direction: column; text-align: center; gap: 14px; } }
+    .ring {
+      --p: 0; --c: var(--accent);
+      flex: none; width: 140px; height: 140px; border-radius: 50%;
+      background: conic-gradient(var(--c) calc(var(--p) * 1%), var(--surface-2) 0);
+      display: grid; place-items: center;
+    }
+    .ring.is-pass { --c: var(--ok); }
+    .ring.is-fail { --c: var(--ko); }
+    .ring-inner {
+      width: 112px; height: 112px; border-radius: 50%; background: var(--surface);
+      display: flex; align-items: baseline; justify-content: center; padding-top: 34px;
+    }
+    .ring-inner strong { font-size: 2.4rem; line-height: 1; font-variant-numeric: tabular-nums; }
+    .ring-inner span { color: var(--muted); font-weight: 600; }
+    .verdict { display: inline-block; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 8px; }
+    .verdict.is-pass { background: var(--ok-soft); color: var(--ok); }
+    .verdict.is-fail { background: var(--ko-soft); color: var(--ko); }
+    .score-text p { margin-bottom: .35em; }
+
+    .themes { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+    .theme-row { display: flex; justify-content: space-between; gap: 12px; font-size: .95rem; margin-bottom: 4px; }
+    .theme-row strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bar { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+
+    .review-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .review-head h2 { margin: 0; }
+    .segmented { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; }
+    .segmented button {
+      border: none; background: transparent; padding: 6px 12px; border-radius: 8px; min-height: 36px;
+      font-weight: 600; font-size: .9rem; cursor: pointer; color: var(--muted);
+    }
+    .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--muted); margin: 0 0 12px; padding: 0; list-style: none; }
+    .legend li::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    .legend .lg-good::before { background: var(--ok); }
+    .legend .lg-missed::before { background: transparent; border: 2px dashed var(--ok); }
+    .legend .lg-bad::before { background: var(--ko); }
+
+    .review-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .review-item { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+    .review-item.is-ko { border-left: 4px solid var(--ko); }
+    .review-item.is-ok { border-left: 4px solid var(--ok); }
+    .review-toggle {
+      width: 100%; display: flex; align-items: flex-start; gap: 10px; text-align: left;
+      padding: 12px 14px; border: none; background: transparent; cursor: pointer; min-height: 52px;
+    }
+    .review-toggle:hover { background: var(--surface-2); }
+    .status {
+      flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+      font-weight: 800; font-size: .85rem; color: #fff;
+    }
+    .is-ok .status { background: var(--ok); }
+    .is-ko .status { background: var(--ko); }
+    @media (prefers-color-scheme: dark) { .status { color: #0b1020; } }
+    .rnum { flex: none; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.6em; }
+    .rq { flex: 1; font-weight: 550; }
+    .chev { flex: none; width: 10px; height: 10px; margin-top: 6px; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform .15s; }
+    .review-toggle[aria-expanded="true"] .chev { transform: rotate(-135deg); margin-top: 10px; }
+    .review-body { padding: 4px 14px 16px; border-top: 1px solid var(--border); }
+    .review-body .tags { margin-top: 12px; }
+    .note { color: var(--warn); font-weight: 600; font-size: .92rem; }
+
+    .review-choices { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 8px; }
+    .rc {
+      display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+      padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border);
+    }
+    .rc .ctext { flex: 1 1 60%; }
+    .rc.is-good { border-color: var(--ok); background: var(--ok-soft); }
+    .rc.is-missed { border: 2px dashed var(--ok); }
+    .rc.is-bad { border-color: var(--ko); background: var(--ko-soft); }
+    .rc.is-bad.is-selected .box { background: var(--ko); border-color: var(--ko); }
+    .rc.is-good.is-selected .box { background: var(--ok); border-color: var(--ok); }
+    .rc-tag { flex-basis: 100%; margin-left: 46px; font-size: .8rem; font-weight: 700; }
+    .rc.is-good .rc-tag, .rc.is-missed .rc-tag { color: var(--ok); }
+    .rc.is-bad .rc-tag { color: var(--ko); }
+
+    .btn-explain { width: 100%; }
+    .explain { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .explain-lead { font-weight: 600; margin: 0; }
+    .excerpt { margin: 0; border-radius: 10px; background: var(--surface-2); padding: 12px 14px; border-left: 4px solid var(--accent); }
+    .excerpt figcaption { font-size: .8rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .excerpt blockquote { margin: 0 0 10px; }
+    .excerpt blockquote strong, .excerpt blockquote span { display: block; }
+    .excerpt blockquote span { color: var(--ok); margin-top: 2px; }
+    .excerpt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ---------- Visionneuse PDF ---------- */
+    dialog#pdf-dialog {
+      width: min(900px, calc(100vw - 24px));
+      max-height: calc(100dvh - 24px);
+      padding: 0; border: none; border-radius: 16px;
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+    }
+    dialog#pdf-dialog[open] { display: flex; flex-direction: column; }
+    dialog#pdf-dialog::backdrop { background: rgba(10, 12, 20, .6); }
+    .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--border); }
+    .dlg-head strong { font-size: .95rem; }
+    .dlg-tools { display: flex; gap: 6px; flex: none; }
+    .icon-btn { width: 44px; height: 44px; flex: none; border-radius: 10px; border: none; background: var(--surface-2); cursor: pointer; font-size: 1.4rem; line-height: 1; }
+    .icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .pdf-status { margin: 0; padding: 10px 16px; font-size: .9rem; color: var(--muted); }
+    .pdf-scroll { flex: 1; overflow: auto; background: var(--surface-2); padding: 0; min-height: 200px; -webkit-overflow-scrolling: touch; }
+    .pdf-page { position: relative; background: #fff; margin: 0 auto; }
+    .pdf-page canvas { display: block; width: 100%; height: auto; }
+    #pdf-hl { position: absolute; inset: 0; pointer-events: none; }
+    .hl { position: absolute; background: var(--mark); border-bottom: 2px solid var(--mark-line); border-radius: 3px; mix-blend-mode: multiply; pointer-events: none; }
+    .dlg-foot { display: flex; justify-content: flex-end; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+    @media (max-width: 600px) {
+      dialog#pdf-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body data-screen="loading">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">Examen civique <span>· entraînement</span></div>
+      <button id="btn-header-home" class="btn btn-small btn-ghost" type="button" hidden>Accueil</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Chargement -->
+    <section id="screen-loading" class="screen">
+      <div class="card"><p class="muted" style="margin:0">Chargement des questions…</p></div>
+    </section>
+
+    <!-- Erreur de chargement -->
+    <section id="screen-error" class="screen" hidden>
+      <div class="card">
+        <h1>Impossible de charger les questions</h1>
+        <p>Le fichier <code>questions.js</code> est introuvable ou contient une erreur.</p>
+        <p class="muted">Vérifiez que <code>index.html</code>, <code>quiz.js</code>, <code>questions.js</code> et les deux PDF sont dans le même dossier. Si vous avez modifié <code>questions.js</code>, vérifiez que le JSON est valide (virgules, guillemets, accolades).</p>
+      </div>
+    </section>
+
+    <!-- Accueil -->
+    <section id="screen-home" class="screen" hidden>
+      <div class="card hero">
+        <h1>Examen civique</h1>
+        <p class="lead">Entraînez-vous avec des examens blancs de <span data-fill="count">40</span> questions tirées au hasard, puis revoyez chaque réponse avec l'extrait des fiches PDF.</p>
+        <ul class="facts">
+          <li><strong data-fill="count">40</strong><span>questions</span></li>
+          <li><strong data-fill="duration">45</strong><span>minutes</span></li>
+          <li><strong data-fill="pass">32/40</strong><span>pour réussir</span></li>
+        </ul>
+        <div class="start">
+          <label class="switch"><input type="checkbox" id="opt-timer" checked> <span id="timer-label">Chronomètre de 45 min</span></label>
+          <button id="btn-start" class="btn btn-primary btn-lg" type="button">Commencer un examen</button>
+          <button id="btn-resume" class="btn btn-lg" type="button" hidden>Reprendre l'examen en cours</button>
+          <button id="btn-last" class="btn btn-ghost" type="button" hidden>Revoir mes derniers résultats</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Notation</h2>
+        <ul class="rules">
+          <li>Chaque question propose jusqu'à <b data-fill="max">4</b> réponses ; <b>une ou plusieurs</b> peuvent être justes.</li>
+          <li><b>1 point</b> si vous cochez toutes les bonnes réponses, et seulement elles.</li>
+          <li>Une réponse fausse ou incomplète vaut 0 : <b>pas de point négatif</b>.</li>
+          <li>Examen réussi à partir de <b data-fill="pass">32/40</b> (<span data-fill="percent">80 %</span>).</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Répartition des questions</h2>
+        <p class="muted" id="home-split"></p>
+        <table class="dist">
+          <thead><tr><th>Thème</th><th class="num">Questions</th><th class="num">Mises en situation</th></tr></thead>
+          <tbody id="home-dist"></tbody>
+        </table>
+        <p class="muted small" id="home-bank" style="margin:0"></p>
+      </div>
+
+      <p class="disclaimer">
+        Outil d'entraînement non officiel, construit à partir des fiches de révision ci-dessous. Les règles peuvent évoluer : vérifiez les informations officielles avant l'examen.
+      </p>
+      <div class="sources-links">
+        <a class="btn btn-small btn-ghost" href="Reponses_examen_civique.pdf" target="_blank" rel="noopener">Fiche PDF 1</a>
+        <a class="btn btn-small btn-ghost" href="reponses_examen_civique-2.pdf" target="_blank" rel="noopener">Fiche PDF 2</a>
+      </div>
+    </section>
+
+    <!-- Examen -->
+    <section id="screen-quiz" class="screen" hidden>
+      <div class="quiz-head">
+        <div class="quiz-meta">
+          <span id="q-counter">Question 1 / 40</span>
+          <span id="q-timer" class="timer" aria-live="off">45:00</span>
+        </div>
+        <div class="progress" aria-hidden="true"><div id="q-progress"></div></div>
+      </div>
+
+      <article class="card">
+        <div class="tags">
+          <span id="q-theme" class="tag"></span>
+          <span id="q-type" class="tag tag-situation" hidden>Mise en situation</span>
+        </div>
+        <h2 id="q-text" class="question-text"></h2>
+        <p class="hint">Cochez toutes les bonnes réponses (une ou plusieurs).</p>
+        <div id="q-choices" class="choices" role="group" aria-labelledby="q-text"></div>
+      </article>
+
+      <details class="navgrid-wrap">
+        <summary>Toutes les questions <span id="q-answered">0/40 répondues</span></summary>
+        <div id="q-grid" class="navgrid"></div>
+      </details>
+
+      <p class="kbd-hint">Raccourcis : touches 1 à 4 pour cocher, ← → pour naviguer.</p>
+
+      <nav class="quiz-nav" aria-label="Navigation entre les questions">
+        <button id="btn-prev" class="btn" type="button">Précédent</button>
+        <button id="btn-finish" class="btn" type="button">Terminer</button>
+        <button id="btn-next" class="btn btn-primary" type="button">Suivant</button>
+      </nav>
+    </section>
+
+    <!-- Résultats -->
+    <section id="screen-results" class="screen" hidden>
+      <div class="card score-card">
+        <div id="r-ring" class="ring" aria-hidden="true">
+          <div class="ring-inner"><strong id="r-score">0</strong><span id="r-total">/40</span></div>
+        </div>
+        <div class="score-text">
+          <span id="r-verdict" class="verdict">—</span>
+          <p id="r-message"></p>
+          <p id="r-detail" class="muted small"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Par thème</h2>
+        <ul id="r-themes" class="themes"></ul>
+      </div>
+
+      <div class="card">
+        <div class="review-head">
+          <h2>Revoir les questions</h2>
+          <div class="segmented" role="group" aria-label="Filtrer les questions">
+            <button type="button" data-filter="all" aria-pressed="true">Toutes (<span id="r-count-all">0</span>)</button>
+            <button type="button" data-filter="ko" aria-pressed="false">Erreurs (<span id="r-count-ko">0</span>)</button>
+          </div>
+        </div>
+        <p class="muted small">Touchez une question pour voir vos choix et la correction, puis l'extrait du PDF qui explique la réponse.</p>
+        <ul class="legend">
+          <li class="lg-good">Bonne réponse</li>
+          <li class="lg-missed">Bonne réponse oubliée</li>
+          <li class="lg-bad">Cochée à tort</li>
+        </ul>
+        <ol id="r-list" class="review-list"></ol>
+        <p id="r-empty" class="muted" hidden>Aucune erreur, bravo !</p>
+      </div>
+
+      <div class="actions">
+        <button id="btn-restart" class="btn btn-primary btn-lg" type="button">Nouvel examen</button>
+        <button id="btn-home" class="btn btn-lg" type="button">Accueil</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="pdf-dialog" aria-labelledby="pdf-title">
+    <div class="dlg-head">
+      <strong id="pdf-title">PDF</strong>
+      <div class="dlg-tools">
+        <button id="pdf-zoom-out" class="icon-btn" type="button" aria-label="Réduire">−</button>
+        <button id="pdf-zoom-in" class="icon-btn" type="button" aria-label="Agrandir">+</button>
+        <button id="pdf-close" class="icon-btn" type="button" aria-label="Fermer">×</button>
+      </div>
+    </div>
+    <p id="pdf-status" class="pdf-status">Chargement…</p>
+    <div id="pdf-scroll" class="pdf-scroll">
+      <div class="pdf-page">
+        <canvas id="pdf-canvas" hidden></canvas>
+        <div id="pdf-hl"></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <a id="pdf-open" class="btn btn-small" href="#" target="_blank" rel="noopener">Ouvrir le PDF complet</a>
+    </div>
+  </dialog>
+
+  <script src="questions.js" defer></script>
+  <script src="quiz.js" defer></script>
+</body>
+</html>
