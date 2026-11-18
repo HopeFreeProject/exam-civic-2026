@@ -241,8 +241,37 @@
       min-width: 1.4ch; text-align: center; font-variant-numeric: tabular-nums;
     }
     .streak-label { font-size: .85rem; color: var(--muted); line-height: 1.25; max-width: 9em; }
-    .rev-side { display: flex; flex-direction: column; align-items: flex-end; font-size: .85rem; color: var(--muted); text-align: right; }
-    .rev-side b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .rev-stats { position: relative; z-index: 2; flex-direction: column; align-items: stretch; gap: 10px; }
+    .rev-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .rev-best { font-size: .9rem; color: var(--muted); white-space: nowrap; }
+    .rev-bottom {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+      padding-top: 10px; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted);
+    }
+    .rev-bottom .tip { right: auto; left: 0; }
+    .rev-bottom .tip::before { right: auto; left: 14px; }
+    .rev-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .hint-tip { white-space: nowrap; }
+    .hint-tip .tip { white-space: normal; }
+    .tip-left .tip { right: auto; left: 0; }
+    .tip-left .tip::before { right: auto; left: 14px; }
+    .hint-tip { position: relative; cursor: help; outline: none; border-radius: 4px; }
+    .hint-tip > span:first-child { border-bottom: 1px dotted var(--muted); }
+    .hint-tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .tip {
+      position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
+      width: max-content; max-width: min(280px, calc(100vw - 48px));
+      padding: 9px 12px; border-radius: 8px; box-shadow: var(--shadow);
+      background: var(--text); color: var(--bg);
+      font-size: .8rem; line-height: 1.4; text-align: left; font-weight: 400;
+      opacity: 0; visibility: hidden; transform: translateY(-4px);
+      transition: opacity .15s, transform .15s, visibility .15s; pointer-events: none;
+    }
+    .tip::before {
+      content: ""; position: absolute; right: 14px; top: -5px; width: 10px; height: 10px;
+      background: inherit; transform: rotate(45deg);
+    }
+    .hint-tip:hover .tip, .hint-tip:focus .tip { opacity: 1; visibility: visible; transform: none; }
     .rev-stats.bump .streak-num { color: var(--ok); animation: bump .45s ease-out; }
     .rev-stats.reset .streak-num { color: var(--ko); animation: shake .4s ease-in-out; }
     @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
@@ -264,6 +293,18 @@
     @media (prefers-color-scheme: dark) { .fb-icon { color: #0b1020; } }
     #rv-explain { margin-top: 14px; }
     .tag-missed { background: var(--ko-soft); color: var(--ko); }
+    .tag-recall { background: var(--ok-soft); color: var(--ok); }
+    .theme-picker { display: flex; align-items: center; gap: 10px; }
+    .theme-picker span { font-weight: 600; font-size: .9rem; color: var(--muted); flex: none; }
+    .theme-picker select {
+      flex: 1; min-width: 0; min-height: 44px; padding: 8px 36px 8px 12px;
+      border: 1.5px solid var(--border); border-radius: 10px; background-color: var(--surface); color: var(--text);
+      font: inherit; font-size: .95rem; cursor: pointer; appearance: none; -webkit-appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+      background-size: 5px 5px; background-repeat: no-repeat;
+    }
+    .theme-picker select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     @media (hover: none) { .kbd-hint { display: none; } }
 
     /* ---------- Résultats ---------- */
@@ -431,7 +472,7 @@
           <button id="btn-last" class="btn btn-ghost" type="button" hidden>Revoir mes derniers résultats</button>
           <div class="or-sep" aria-hidden="true">ou</div>
           <button id="btn-revise" class="btn btn-lg btn-revise" type="button">Réviser question par question</button>
-          <p class="muted small" style="margin:0">Mode révision : sans chronomètre, la correction s'affiche après chaque réponse. Une erreur remet la série à 0, et la question ratée revient un peu plus tard.</p>
+          <p class="muted small" style="margin:0">Mode révision : sans chronomètre, la correction s'affiche après chaque réponse. Une erreur remet la série à 0, et la question ratée revient un peu plus tard. Toutes les 20 réponses, une ou deux questions déjà réussies reviennent, comme des flashcards.</p>
         </div>
       </div>
 
@@ -501,15 +542,29 @@
     <!-- Révision -->
     <section id="screen-revision" class="screen" hidden>
       <div id="rv-streak-box" class="rev-stats">
-        <div class="streak" aria-live="polite">
-          <span id="rv-streak" class="streak-num">0</span>
-          <span id="rv-streak-label" class="streak-label">bonne réponse d'affilée</span>
+        <div class="rev-top">
+          <div class="streak" aria-live="polite">
+            <span id="rv-streak" class="streak-num">0</span>
+            <span id="rv-streak-label" class="streak-label">bonne réponse d'affilée</span>
+          </div>
+          <span class="rev-best">Record : <b id="rv-best">0</b></span>
         </div>
-        <div class="rev-side">
-          <span>Record : <b id="rv-best">0</b></span>
-          <span id="rv-total">0/0 réussie</span>
+        <div class="rev-bottom">
+          <span class="hint-tip tip-left" tabindex="0" aria-describedby="rv-total-tip">
+            <span id="rv-total">0/0 réussie en révision</span>
+            <span class="tip" role="tooltip" id="rv-total-tip"></span>
+          </span>
+          <span class="hint-tip" tabindex="0" aria-describedby="rv-mastery-tip">
+            <span id="rv-mastery"><b>0 %</b> des questions réussies</span>
+            <span class="tip" role="tooltip" id="rv-mastery-tip"></span>
+          </span>
         </div>
       </div>
+
+      <label class="theme-picker">
+        <span>Thème</span>
+        <select id="rv-theme" aria-label="Thème de la révision"></select>
+      </label>
 
       <article class="card">
         <div id="rv-tags" class="tags"></div>

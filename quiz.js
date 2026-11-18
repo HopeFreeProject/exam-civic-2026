@@ -68,12 +68,13 @@
     return sel.size === good.size && [...sel].every(i => good.has(i));
   }
 
-  // Révision : remet une question ratée dans la file, 3 à 6 questions plus loin.
-  function requeue(queue, id, rnd) {
+  // Révision : remet une question dans la file, entre `from` et `to` questions plus loin
+  // (par défaut 3 à 6 : question ratée).
+  function requeue(queue, id, rnd, from, to) {
     const r = rnd || Math.random;
     const q = queue.filter(x => x !== id);
-    const min = Math.min(3, q.length);
-    const max = Math.min(6, q.length);
+    const min = Math.min(from == null ? 3 : from, q.length);
+    const max = Math.min(to == null ? 6 : to, q.length);
     q.splice(min + Math.floor(r() * (max - min + 1)), 0, id);
     return q;
   }
@@ -218,6 +219,7 @@
     $('#btn-revise').addEventListener('click', startRevision);
     $('#rv-check').addEventListener('click', checkRevision);
     $('#rv-next').addEventListener('click', nextRevision);
+    $('#rv-theme').addEventListener('change', e => changeRevisionTheme(e.target.value));
     $('#btn-header-home').addEventListener('click', goHome);
     $('#btn-prev').addEventListener('click', () => go(session.current - 1));
     $('#btn-next').addEventListener('click', () => go(session.current + 1));
@@ -453,8 +455,39 @@
 
   function saveRev() { if (rev) store.set(REVISION_KEY, rev); }
 
+  function revisionPool() {
+    return DATA.questions.filter(q => rev.theme === 'all' || q.theme === rev.theme).map(q => q.id);
+  }
+
+  function fillThemeSelect() {
+    const sel = $('#rv-theme');
+    if (sel.options.length) return;
+    sel.append(h('option', { value: 'all' }, `Tous les thèmes (${DATA.questions.length})`));
+    DATA.themes.forEach(t => {
+      const n = DATA.questions.filter(q => q.theme === t.id).length;
+      sel.append(h('option', { value: t.id }, `${t.label} (${n})`));
+    });
+  }
+
+  // Changement de thème : nouvelle file limitée au thème choisi. La série et le record sont conservés.
+  function changeRevisionTheme(theme) {
+    rev.theme = THEMES[theme] ? theme : 'all';
+    rev.queue = [];
+    const cur = rev.current;
+    if (!cur || !cur.checked || (rev.theme !== 'all' && BYID[cur.id].theme !== rev.theme)) {
+      nextRevisionQuestion();
+      $('#rv-streak-box').classList.remove('bump', 'reset');
+    }
+    saveRev();
+    renderRevision();
+  }
+
   function startRevision() {
     if (!rev) rev = { queue: [], current: null, streak: 0, best: 0, answered: 0, correct: 0, missed: {} };
+    if (!rev.theme || (rev.theme !== 'all' && !THEMES[rev.theme])) rev.theme = 'all';
+    rev.mastered = rev.mastered || {}; // id → n° de la réponse réussie (pour retrouver les plus anciennes)
+    rev.recall = rev.recall || {}; // questions réussies remises en jeu (flashcards)
+    fillThemeSelect();
     if (!rev.current) nextRevisionQuestion();
     saveRev();
     show('revision');
@@ -465,8 +498,11 @@
   // sont réinsérées un peu plus loin dans la file (voir requeue).
   function nextRevisionQuestion() {
     const lastId = rev.current ? rev.current.id : null;
+    const pool = revisionPool();
+    const inPool = new Set(pool);
+    rev.queue = rev.queue.filter(id => inPool.has(id)); // file limitée au thème choisi
     if (!rev.queue.length) {
-      rev.queue = shuffle(DATA.questions.map(q => q.id));
+      rev.queue = shuffle(pool);
       if (rev.queue.length > 1 && rev.queue[0] === lastId) {
         [rev.queue[0], rev.queue[1]] = [rev.queue[1], rev.queue[0]];
       }
@@ -477,8 +513,31 @@
       order: shuffle(BYID[id].choices.map((_, i) => i)),
       sel: [],
       checked: false,
-      wasMissed: !!rev.missed[id]
+      wasMissed: !!rev.missed[id],
+      isRecall: !!rev.recall[id]
     };
+  }
+
+  const RECALL_EVERY = 20; // toutes les 20 réponses…
+  // …1 ou 2 questions réussies (parmi les plus anciennes) sont retirées des réussites
+  // et reviennent dans les prochaines questions, comme des flashcards.
+  function recallMastered() {
+    const pool = new Set(revisionPool());
+    const oldest = Object.keys(rev.mastered)
+      .filter(id => pool.has(id) && id !== rev.current.id)
+      .sort((a, b) => rev.mastered[a] - rev.mastered[b])
+      .slice(0, 5);
+    const picked = shuffle(oldest).slice(0, Math.random() < 0.5 ? 1 : 2);
+    // Positions distinctes parmi les 4 prochaines, insérées dans l'ordre croissant
+    // pour qu'une insertion ne repousse pas l'autre plus loin.
+    const slots = shuffle([0, 1, 2, 3]).slice(0, picked.length).sort((a, b) => a - b);
+    rev.queue = rev.queue.filter(id => !picked.includes(id));
+    picked.forEach((id, i) => {
+      delete rev.mastered[id];
+      rev.recall[id] = true;
+      rev.queue.splice(Math.min(slots[i], rev.queue.length), 0, id);
+    });
+    return picked.length;
   }
 
   function nextRevision() {
@@ -509,12 +568,16 @@
       cur.record = rev.streak > rev.best && rev.streak > 1;
       rev.best = Math.max(rev.best, rev.streak);
       delete rev.missed[cur.id];
+      rev.mastered[cur.id] = rev.answered;
     } else {
       rev.streak = 0; // la série retombe à zéro
       rev.missed[cur.id] = true;
+      delete rev.mastered[cur.id];
       rev.queue = requeue(rev.queue, cur.id); // la question reviendra plus tard
     }
+    delete rev.recall[cur.id];
     cur.streakAfter = rev.streak;
+    if (rev.answered % RECALL_EVERY === 0) cur.recalled = recallMastered();
     saveRev();
     renderRevision();
     const box = $('#rv-streak-box');
@@ -531,15 +594,31 @@
     const cur = rev.current;
     const q = BYID[cur.id];
 
+    $('#rv-theme').value = rev.theme;
     $('#rv-streak').textContent = rev.streak;
     $('#rv-streak-label').textContent = plural(rev.streak, 'bonne réponse d\'affilée', 'bonnes réponses d\'affilée');
     $('#rv-best').textContent = rev.best;
-    $('#rv-total').textContent = `${rev.correct}/${rev.answered} ${plural(rev.correct, 'réussie', 'réussies')}`;
+    // Réponses données pendant la révision
+    const rate = rev.answered ? Math.round((rev.correct / rev.answered) * 100) : 0;
+    $('#rv-total').textContent = `${rev.correct}/${rev.answered} ${plural(rev.correct, 'réussie', 'réussies')} en révision`;
+    $('#rv-total-tip').textContent =
+      `Bonnes réponses sur le nombre de réponses données depuis le début de la révision (${rate} % de bonnes réponses). ` +
+      'Une même question peut compter plusieurs fois si elle revient.';
+    // Part des questions (du thème choisi) actuellement réussies
+    const pool = revisionPool();
+    const masteredN = pool.filter(id => rev.mastered[id]).length;
+    const scope = rev.theme === 'all' ? 'de la banque (tous les thèmes)' : `du thème « ${THEMES[rev.theme].label} »`;
+    $('#rv-mastery').replaceChildren(h('b', null, `${Math.round((masteredN / pool.length) * 100)} %`), ' des questions réussies');
+    $('#rv-mastery-tip').textContent =
+      `${masteredN} ${plural(masteredN, 'question réussie', 'questions réussies')} sur les ${pool.length} questions ${scope}. ` +
+      'Une question compte comme réussie après une bonne réponse. Elle sort du compte si vous la ratez, ' +
+      `ou quand elle revient en flashcard (toutes les ${RECALL_EVERY} réponses) jusqu'à ce que vous la réussissiez à nouveau.`;
 
     $('#rv-tags').replaceChildren(...[
       h('span', { class: 'tag' }, THEMES[q.theme].label),
       q.type === 'situation' ? h('span', { class: 'tag tag-situation' }, 'Mise en situation') : null,
-      cur.wasMissed ? h('span', { class: 'tag tag-missed' }, 'Déjà ratée') : null
+      cur.wasMissed ? h('span', { class: 'tag tag-missed' }, 'Déjà ratée') : null,
+      cur.isRecall && !cur.wasMissed ? h('span', { class: 'tag tag-recall' }, 'Rappel : déjà réussie') : null
     ].filter(Boolean));
     $('#rv-text').textContent = q.question;
 
@@ -573,6 +652,11 @@
       if (missed) parts.push(`${missed} ${plural(missed, 'bonne réponse oubliée', 'bonnes réponses oubliées')}`);
       const what = parts.join(' et ');
       detail = `${what.charAt(0).toUpperCase() + what.slice(1)}. La série retombe à 0 ; cette question reviendra un peu plus tard.`;
+    }
+    if (cur.recalled) {
+      detail += cur.recalled > 1
+        ? ` ${cur.recalled} questions déjà réussies vont revenir pour vérifier que vous les retenez.`
+        : ' Une question déjà réussie va revenir pour vérifier que vous la retenez.';
     }
     feedback.className = 'feedback ' + (ok ? 'is-ok' : 'is-ko');
     feedback.replaceChildren(
